@@ -35,3 +35,175 @@ button { color:inherit; }
 .table-footer a{display:flex;align-items:center;gap:5px;color:#5579b9;font-size:9px;font-weight:600;text-decoration:none}.search-submit{border:0;background:none;color:#5579b9;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap;padding:3px}.button:disabled{opacity:.62;cursor:not-allowed;transform:none}
 .live-pill.demo{color:var(--amber)}.live-pill.demo i{background:var(--amber)}.empty-state{padding:19px 14px;color:var(--muted);font-size:10px}
 .profile-sign-out-form{margin-left:auto}.sidebar.is-collapsed .profile-sign-out-form{margin-left:0}.profile-sign-out{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:4px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:9px;white-space:nowrap;cursor:pointer}.profile-sign-out:hover{background:var(--surface-subtle);color:var(--text)}.sidebar.is-collapsed .profile-sign-out span{display:none}.login-page{display:grid;min-height:100vh;place-items:center;padding:24px;background:var(--bg)}.login-card{width:min(100%,390px);padding:32px;border:1px solid var(--border);border-radius:10px;background:var(--surface);box-shadow:var(--shadow)}.login-brand{display:flex;align-items:center;gap:10px}.login-copy{margin:42px 0 24px}.login-eyebrow{color:#8b96a4;font-size:9px;font-weight:700;letter-spacing:.85px}.login-copy h1{margin-top:10px;font-size:24px}.login-copy p{margin:8px 0 0;color:var(--muted);font-size:12px}.microsoft-sign-in{width:100%;min-height:42px;font-size:12px}.microsoft-mark{display:grid;width:15px;height:15px;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:2px}.microsoft-mark i:nth-child(1){background:#f25022}.microsoft-mark i:nth-child(2){background:#7fba00}.microsoft-mark i:nth-child(3){background:#00a4ef}.microsoft-mark i:nth-child(4){background:#ffb900}.login-error{margin:0 0 15px;padding:10px;border:1px solid var(--red-soft);border-radius:6px;background:var(--red-soft);color:var(--red);font-size:11px;line-height:1.5}
+
+:root {
+  --bg: #f3f6fb;
+  --surface: #ffffff;
+  --surface-subtle: #f8faff;
+  --border: #e5eaf2;
+  --border-strong: #d5deeb;
+  --shadow: 0 2px 8px rgba(22, 34, 55, .035), 0 12px 32px rgba(22, 34, 55, .025);
+}
+
+body { font-size: 15px; line-height: 1.5; }
+.app-shell { min-height: 100vh; }
+.sidebar { position: sticky; top: 0; align-self: flex-start; width: 264px; height: 100vh; flex-basis: 264px; padding: 24px 16px 16px; }
+.sidebar.is-collapsed { width: 76px; flex-basis: 76px; padding-inline: 12px; }
+.brand { height: 40px; gap: 12px; }
+.brand-mark { width: 32px; height: 32px; border-radius: 10px; }
+.brand-name { font-size: 20px; }
+.workspace-switch { height: 54px; margin: 30px 4px 32px; padding-inline: 10px; border-radius: 10px; }
+.workspace-avatar { width: 30px; height: 30px; font-size: 13px; }
+.workspace-name { font-size: 13px; }
+.nav-label { margin-bottom: 10px; font-size: 10px; }
+.sidebar nav { gap: 5px; }
+.nav-item { min-height: 44px; height: 44px; border-radius: 9px; gap: 12px; padding-inline: 12px; font-size: 14px; }
+.nav-item svg { width: 19px; height: 19px; }
+.nav-count { font-size: 11px; }
+.sidebar-integration { margin-bottom: 12px; padding: 13px 12px; border-radius: 9px; }
+.sidebar-integration strong, .profile-copy strong { font-size: 13px; }
+.sidebar-integration small, .profile-copy small { font-size: 11px; }
+.profile-card { gap: 11px; padding: 15px 5px 2px; }
+.profile-avatar { width: 36px; height: 36px; font-size: 12px; }
+.profile-sign-out { font-size: 11px; }
+.main-area { min-width: 0; }
+.topbar { position: sticky; top: 0; z-index: 4; height: 68px; padding-inline: clamp(24px, 3vw, 48px); backdrop-filter: blur(16px); background: color-mix(in srgb, var(--surface) 92%, transparent); }
+.breadcrumbs { gap: 10px; font-size: 13px; }
+.topbar-actions { gap: 16px; }
+.environment { font-size: 12px; }
+.icon-button { width: 38px; height: 38px; border-radius: 9px; }
+.help-button { font-size: 13px; }
+.content-wrap { max-width: 1560px; padding: 40px clamp(24px, 3vw, 48px) 32px; }
+.page-heading { align-items: flex-end; margin-bottom: 32px; }
+.eyebrow { margin-bottom: 12px; font-size: 11px; letter-spacing: 1px; }
+.live-pill { padding: 4px 8px; font-size: 10px; }
+h1, .page-heading h1 { font-size: clamp(30px, 2.4vw, 36px); letter-spacing: -1.1px; line-height: 1.15; }
+.page-heading p { margin-top: 8px; font-size: 15px; line-height: 1.55; }
+.button { min-height: 42px; padding: 10px 15px; border-radius: 9px; font-size: 13px; }
+.button-primary { background: #3268df; box-shadow: 0 4px 10px rgba(50, 104, 223, .18); }
+.metrics-grid { gap: 16px; }
+.metric-card { min-height: 142px; padding: 19px 20px 17px; border-radius: 12px; }
+.metric-top { font-size: 13px; }
+.metric-icon { width: 34px; height: 34px; border-radius: 9px; }
+.metric-value { margin: 12px 0 8px; font-size: 31px; letter-spacing: -1px; }
+.metric-foot { gap: 8px; font-size: 12px; }
+.operations-section, .applications-section { margin-top: 38px; }
+.section-heading { margin-bottom: 16px; }
+.section-heading h2 { font-size: 18px; letter-spacing: -.3px; }
+.section-heading p { margin-top: 5px; font-size: 13px; }
+.text-button { font-size: 13px; }
+.attention-grid { gap: 14px; }
+.attention-card { gap: 13px; padding: 17px; border-radius: 12px; }
+.attention-icon { width: 36px; height: 36px; border-radius: 10px; }
+.attention-content h3 { margin-bottom: 6px; font-size: 14px; }
+.attention-content code { font-size: 12px; }
+.attention-content p { margin-top: 7px; font-size: 12px; }
+.button-small { min-height: 36px; padding: 7px 10px; font-size: 12px; }
+.table-card, .events-card, .readiness-card { border-radius: 12px; }
+.table-toolbar { height: 60px; padding-inline: 18px; }
+.table-caption { font-size: 13px; }
+.table-total { width: 24px; height: 24px; font-size: 12px; }
+.data-label { font-size: 11px; }
+.search-field { width: 260px; height: 38px; gap: 9px; padding-inline: 10px; border-radius: 8px; }
+.search-field input { font-size: 12px; }
+.search-field kbd { font-size: 10px; }
+thead th { height: 42px; padding-inline: 14px; font-size: 10px; letter-spacing: .65px; }
+tbody td { height: 64px; padding-inline: 14px; font-size: 13px; }
+thead th:first-child, tbody td:first-child { padding-left: 18px; }
+.app-cell { gap: 11px; }
+.client-avatar { width: 34px; height: 34px; border-radius: 9px; font-size: 10px; }
+.app-cell strong { font-size: 13px; }
+.app-cell small { font-size: 11px; }
+.type-label { font-size: 12px; }
+.hostname { font-size: 11px; }
+.status-badge { padding: 5px 9px; font-size: 11px; }
+.row-more { width: 32px; height: 32px; }
+.table-footer { height: 46px; padding-inline: 18px; font-size: 11px; }
+.table-footer a, .table-footer button, .search-submit { font-size: 11px; }
+.lower-grid { gap: 22px; margin-top: 38px; }
+.event-row { min-height: 68px; gap: 11px; padding: 14px 16px; }
+.event-marker { width: 30px; height: 30px; }
+.event-main { gap: 4px; }
+.event-main strong { font-size: 13px; }
+.event-main code, .event-main span, .event-row time { font-size: 11px; }
+.readiness-card { padding: 8px 18px 18px; }
+.readiness-row { height: 44px; font-size: 13px; }
+.readiness-status { font-size: 11px; }
+.readiness-note { gap: 9px; margin: 14px 0; padding: 12px; border-radius: 8px; font-size: 12px; }
+.readiness-card > .button { min-height: 40px; font-size: 12px; }
+.muted-dot-label { font-size: 11px; }
+.page-footer { padding-top: 22px; margin-top: 24px; font-size: 11px; }
+.settings-grid { gap: 16px; }
+.setting-card { min-height: 174px; gap: 10px; padding: 20px; border-radius: 12px; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.setting-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(22, 34, 55, .08); }
+.setting-icon { width: 36px; height: 36px; border-radius: 10px; }
+.setting-card strong { font-size: 14px; }
+.setting-card > span:not(.setting-icon) { font-size: 12px; }
+.setting-card small { font-size: 11px; }
+.setting-card > svg:last-child { right: 18px; top: 22px; }
+.section-table-card tbody td { height: 60px; }
+.empty-state { padding: 24px 18px; font-size: 13px; }
+.login-card { width: min(100%, 480px); padding: 40px; border-radius: 16px; }
+.login-copy h1 { font-size: 30px; }
+.login-copy p { font-size: 15px; }
+.microsoft-sign-in { min-height: 50px; font-size: 14px; }
+.login-error { padding: 13px; font-size: 13px; }
+
+@media (max-width: 1100px) {
+  .content-wrap { padding-inline: 28px; }
+  .topbar { padding-inline: 28px; }
+  .sidebar { width: 232px; flex-basis: 232px; }
+  .lower-grid { gap: 16px; }
+}
+
+@media (max-width: 850px) {
+  .sidebar { width: 76px; flex-basis: 76px; padding-inline: 12px; }
+  .sidebar.is-collapsed { width: 76px; flex-basis: 76px; }
+  .content-wrap { padding-inline: 24px; }
+  .metrics-grid { gap: 12px; }
+  .lower-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .sidebar { position: fixed; width: 260px !important; flex-basis: 260px !important; height: auto; padding: 22px 16px 16px; }
+  .topbar { height: 60px; padding-inline: 14px; gap: 9px; }
+  .breadcrumbs { gap: 5px; font-size: 12px; }
+  .topbar-actions { gap: 7px; }
+  .environment { font-size: 10px; }
+  .content-wrap { padding: 26px 16px 24px; }
+  .page-heading { margin-bottom: 24px; gap: 12px; }
+  h1, .page-heading h1 { font-size: 28px; }
+  .page-heading p { max-width: 240px; font-size: 13px; }
+  .page-heading > .button { min-height: 38px; padding: 7px 9px; font-size: 11px; }
+  .eyebrow { font-size: 9px; }
+  .metrics-grid { gap: 10px; }
+  .metric-card { min-height: 122px; padding: 14px; }
+  .metric-top { font-size: 11px; }
+  .metric-icon { width: 29px; height: 29px; }
+  .metric-value { font-size: 27px; }
+  .metric-foot { align-items: flex-start; font-size: 10px; }
+  .section-heading h2 { font-size: 16px; }
+  .section-heading p { font-size: 11px; }
+  .text-button { font-size: 11px; }
+  .attention-grid { grid-template-columns: 1fr; gap: 10px; }
+  .attention-card { padding: 13px; }
+  .attention-content h3 { font-size: 12px; }
+  .attention-content code, .attention-content p { font-size: 10px; }
+  .button-small { min-height: 32px; font-size: 10px; }
+  .table-toolbar { min-height: 56px; height: auto; padding: 9px 10px; }
+  .table-caption { font-size: 10px; }
+  .search-field { width: min(48vw, 190px); height: 34px; }
+  .search-field input { font-size: 11px; }
+  .data-label { display: none; }
+  table { min-width: 720px; }
+  tbody td { font-size: 11px; }
+  .table-footer { padding-inline: 10px; font-size: 9px; }
+  .table-footer a, .table-footer button { font-size: 9px; }
+  .lower-grid { margin-top: 28px; }
+  .page-footer { flex-direction: column; gap: 5px; font-size: 9px; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .setting-card { min-height: 148px; }
+  .section-table-card table { min-width: 600px; }
+  .login-card { padding: 28px; }
+  .login-copy { margin: 34px 0 22px; }
+}
