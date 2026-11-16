@@ -1,0 +1,50 @@
+.settingCard {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.settingCard:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.detailCard {
+  max-width: 760px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.detailStatus {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.detailStatus span {
+  color: var(--muted);
+}
+
+.detailStatus strong {
+  text-align: right;
+  font-weight: 600;
+}
+
+.detailCopy {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.detailCopy p {
+  margin: 0;
+}

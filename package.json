@@ -2,14 +2,24 @@
   "name": "appedge",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "npm run cf:config && next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cf:config": "node scripts/generate-wrangler-config.mjs",
+    "cf:build": "npm run cf:config && opennextjs-cloudflare build --config wrangler.generated.jsonc",
+    "cf:preview": "npm run cf:build && opennextjs-cloudflare preview --config wrangler.generated.jsonc",
+    "cf:typegen": "npm run cf:config && wrangler types --config wrangler.generated.jsonc --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "db:migrate:local": "node scripts/run-local-d1.mjs migrate",
+    "db:seed:local": "node scripts/run-local-d1.mjs seed"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "1.20.17",
     "next": "16.4.6",
+    "jose": "6.2.17",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
@@ -20,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "wrangler": "4.162.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5"
   }
