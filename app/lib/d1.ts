@@ -12,6 +12,7 @@ export interface AppEdgeD1Statement {
 
 export interface AppEdgeD1Database {
   prepare(query: string): AppEdgeD1Statement;
+  batch(statements: AppEdgeD1Statement[]): Promise<unknown[]>;
 }
 
 export function getAppEdgeDatabase(): AppEdgeD1Database {

@@ -207,3 +207,38 @@ thead th:first-child, tbody td:first-child { padding-left: 18px; }
   .login-card { padding: 28px; }
   .login-copy { margin: 34px 0 22px; }
 }
+
+.record-form-card { max-width: 900px; padding: 26px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+.record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.record-form > input[type="hidden"] { display: none; }
+.record-field { display: grid; align-content: start; gap: 8px; color: var(--text); font-size: 13px; font-weight: 600; }
+.record-field > span b { color: var(--red); }
+.record-field input, .record-field select, .record-field textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 14px; font-weight: 400; }
+.record-field textarea { min-height: 110px; resize: vertical; }
+.record-field input:focus, .record-field select:focus, .record-field textarea:focus { outline: 2px solid color-mix(in srgb, var(--blue) 32%, transparent); border-color: var(--blue); }
+.record-field small { color: var(--muted); font-size: 11px; font-weight: 400; line-height: 1.5; }
+.form-note, .form-prerequisite { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.form-prerequisite { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.form-prerequisite p { margin: 0; }
+.form-error { grid-column: 1 / -1; margin: 0; padding: 12px 14px; border: 1px solid var(--red-soft); border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 13px; }
+.form-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.form-actions button:disabled { opacity: .65; cursor: progress; }
+.inline-success { margin: -14px 0 22px; padding: 12px 15px; border: 1px solid color-mix(in srgb, var(--green) 24%, transparent); border-radius: 9px; background: var(--green-soft); color: var(--green); font-size: 13px; }
+.help-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.help-card { min-height: 96px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); text-decoration: none; box-shadow: var(--shadow); transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease; }
+.help-card:hover { transform: translateY(-2px); border-color: var(--border-strong); box-shadow: 0 10px 24px rgba(22, 34, 55, .08); }
+.help-card > span { display: grid; gap: 5px; }
+.help-card strong { font-size: 14px; }
+.help-card small { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.help-card > svg { flex: 0 0 auto; color: var(--blue); }
+.sidebar-integration { color: var(--text); text-decoration: none; transition: background .16s ease, border-color .16s ease; }
+.sidebar-integration:hover { border-color: var(--border-strong); background: var(--surface-subtle); }
+.sidebar-integration .integration-copy { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.sidebar.is-collapsed .sidebar-integration .integration-copy, .sidebar.is-collapsed .sidebar-integration .integration-chevron { display: none; }
+
+@media (max-width: 600px) {
+  .record-form-card { padding: 18px; }
+  .record-form, .help-grid { grid-template-columns: 1fr; gap: 16px; }
+  .form-prerequisite { align-items: flex-start; flex-direction: column; }
+  .help-card { min-height: 86px; padding: 15px; }
+}

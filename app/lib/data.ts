@@ -52,6 +52,12 @@ export type ManagementData = {
   demoRecordCount: number;
 };
 
+export type CreateRecordOptions = {
+  clients: { id: string; name: string }[];
+  applications: { id: string; name: string; clientName: string }[];
+  domains: { id: string; hostname: string; applicationName: string }[];
+};
+
 type DashboardCounts = {
   client_count: number;
   application_count: number;
@@ -307,6 +313,33 @@ export async function getManagementData(section: ManagementSection): Promise<Man
   return {
     rows: rowResult.results.map((row) => mapManagementRow(section, row)),
     demoRecordCount: demoResult.results[0]?.count ?? 0,
+  };
+}
+
+export async function getCreateRecordOptions(): Promise<CreateRecordOptions> {
+  const database = getAppEdgeDatabase();
+  const [clients, applications, domains] = await Promise.all([
+    database.prepare("SELECT id, name FROM clients WHERE status = 'active' ORDER BY name").all<{ id: string; name: string }>(),
+    database.prepare(`
+      SELECT applications.id, applications.name, clients.name AS client_name
+      FROM applications
+      INNER JOIN clients ON clients.id = applications.client_id
+      WHERE clients.status = 'active' AND applications.status != 'disabled'
+      ORDER BY clients.name, applications.name
+    `).all<{ id: string; name: string; client_name: string }>(),
+    database.prepare(`
+      SELECT domains.id, domains.hostname, applications.name AS application_name
+      FROM domains
+      INNER JOIN applications ON applications.id = domains.application_id
+      WHERE applications.status != 'disabled'
+      ORDER BY domains.hostname
+    `).all<{ id: string; hostname: string; application_name: string }>(),
+  ]);
+
+  return {
+    clients: clients.results,
+    applications: applications.results.map(({ id, name, client_name }) => ({ id, name, clientName: client_name })),
+    domains: domains.results.map(({ id, hostname, application_name }) => ({ id, hostname, applicationName: application_name })),
   };
 }
 

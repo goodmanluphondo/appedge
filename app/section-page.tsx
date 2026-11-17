@@ -30,7 +30,7 @@ const sectionsBySlug = {
   settings: "Settings",
 } as const satisfies Record<string, ManagementSection>;
 
-export function SectionPage({ section, query, data }: { section: ManagementSection; query: string; data: ManagementData }) {
+export function SectionPage({ section, query, created = false, data }: { section: ManagementSection; query: string; created?: boolean; data: ManagementData }) {
   const tableRows = data.rows.filter((row) => row.cells.join(" ").toLowerCase().includes(query.toLowerCase()));
   const action = section === "Clients" ? "Add a client" : section === "Applications" ? "Add an application" : section === "Domains" ? "Add a domain" : `New ${section.toLowerCase().replace(/s$/, "")}`;
 
@@ -41,8 +41,9 @@ export function SectionPage({ section, query, data }: { section: ManagementSecti
         <h1>{section}</h1>
         <p>{descriptions[section]}</p>
       </div>
-      {section !== "Activity" && section !== "Settings" && <button className="button button-primary" type="button" disabled title="Management actions require configured backend services"><Icon name="plus" size={17}/>{action}</button>}
+      {section !== "Activity" && section !== "Settings" && <Link className="button button-primary" href={`/${section.toLowerCase()}/new`}><Icon name="plus" size={17}/>{action}</Link>}
     </div>
+    {created && <p className="inline-success" role="status">{section.slice(0, -1)} created successfully.</p>}
     {section === "Settings" ? (
       <div className="settings-grid">
         {settingOptions.map((setting) => <Link className={`setting-card ${styles.settingCard}`} href={`/settings/${setting.slug}`} key={setting.slug}>

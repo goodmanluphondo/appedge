@@ -9,5 +9,5 @@ export default async function Page({ params, searchParams }: PageProps<"/[sectio
   if (!section) notFound();
   await headers();
   const data = await getManagementData(section);
-  return <SectionPage section={section} query={typeof query.q === "string" ? query.q : ""} data={data}/>;
+  return <SectionPage section={section} query={typeof query.q === "string" ? query.q : ""} created={query.created === "1"} data={data}/>;
 }

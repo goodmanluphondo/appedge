@@ -71,8 +71,9 @@ export const settingOptions: SettingOption[] = [
     description: "Audit records and relevant security controls.",
     status: "Audit events stored in AppEdge D1",
     details: [
+      "Client, application, domain and route creation is saved to AppEdge D1 together with an audit event.",
+      "Infrastructure provisioning actions remain unavailable until the service integrations are connected.",
       "Recorded audit events can be reviewed on the Activity page.",
-      "Audited write operations are not connected yet.",
     ],
     icon: "activity",
   },
