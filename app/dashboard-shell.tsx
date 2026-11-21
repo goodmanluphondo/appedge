@@ -1,46 +1,186 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { Brand } from "./brand";
 import { Icon, type IconName } from "./icons";
+import { clientPaletteFor, initialsOf } from "./lib/format";
+import { buildHref } from "./lib/query";
 import type { AuthenticatedAdministrator } from "../lib/auth";
+import { NoticeDialog, RecordModal, parseModalKind, type ModalKind, type Notice } from "./record-modal";
+import { ShellActionsContext } from "./shell-actions";
+import type { ShellApplication, ShellClient, ShellReadyDomain } from "./lib/data";
 
-const navigation: { label: string; href: string; icon: IconName }[] = [
-  { label: "Overview", href: "/", icon: "grid" },
-  { label: "Clients", href: "/clients", icon: "users" },
-  { label: "Applications", href: "/applications", icon: "box" },
-  { label: "Domains", href: "/domains", icon: "globe" },
-  { label: "Routes", href: "/routes", icon: "route" },
-  { label: "Activity", href: "/activity", icon: "activity" },
+type NavigationItem = { label: string; href: string; icon: IconName; title: string; subtitle: string };
+
+const navigation: NavigationItem[] = [
+  { label: "Overview", href: "/", icon: "grid", title: "Overview", subtitle: "Where every custom domain stands between request and live traffic." },
+  { label: "Clients", href: "/clients", icon: "users", title: "Clients", subtitle: "Organisations whose applications run through AppEdge." },
+  { label: "Applications", href: "/applications", icon: "box", title: "Applications", subtitle: "Registered applications and their upstream origins." },
+  { label: "Domains", href: "/domains", icon: "globe", title: "Domains", subtitle: "Custom hostnames and their validation status." },
+  { label: "Routes", href: "/routes", icon: "route", title: "Routes", subtitle: "Hostname to origin mappings the gateway serves from D1." },
+  { label: "Activity", href: "/activity", icon: "activity", title: "Activity", subtitle: "Configuration changes and provisioning events." },
+  { label: "Settings", href: "/settings", icon: "settings", title: "Settings", subtitle: "Integrations and access control." },
 ];
 
-export function DashboardShell({ children, administrator }: { children: ReactNode; administrator: AuthenticatedAdministrator }) {
+const createItems: { label: string; description: string; modal: ModalKind; icon: IconName }[] = [
+  { label: "Domain", description: "Connect a custom hostname", modal: "domain", icon: "globe" },
+  { label: "Route", description: "Publish a hostname to an origin", modal: "route", icon: "route" },
+  { label: "Client", description: "Add an organisation", modal: "client", icon: "users" },
+  { label: "Application", description: "Register an origin", modal: "application", icon: "box" },
+];
+
+type OpenMenu = "scope" | "create" | "user" | null;
+
+export function DashboardShell({ children, administrator, clients, applications, readyDomains, attentionCount }: {
+  children: ReactNode;
+  administrator: AuthenticatedAdministrator;
+  clients: ShellClient[];
+  applications: ShellApplication[];
+  readyDomains: ShellReadyDomain[];
+  attentionCount: number;
+}) {
   const pathname = usePathname();
-  const [dark, setDark] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const active = pathname === "/" ? "Overview" : pathname.split("/")[1]?.replace(/^./, (letter) => letter.toUpperCase()) ?? "Overview";
-  const initials = administrator.displayName.split(/\s+/).filter(Boolean).map((word) => word[0]).join("").slice(0, 2).toUpperCase();
-  return <div className={`app-shell${dark ? " theme-dark" : ""}`}>
-    {mobileOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-    <aside className={`sidebar${collapsed ? " is-collapsed" : ""}${mobileOpen ? " is-mobile-open" : ""}`}>
-      <Link className="brand" href="/" aria-label="AppEdge home"><span className="brand-mark"><span/><span/><span/></span>{!collapsed && <span className="brand-name">App<span>Edge</span></span>}</Link>
-      <div className="workspace-switch"><span className="workspace-avatar">A</span>{!collapsed && <><span className="workspace-name">AppEdge workspace</span><span className="workspace-chevron">⌄</span></>}</div>
-      <div className="nav-label">PLATFORM</div>
-      <nav aria-label="Main navigation">{navigation.map((item) => <Link key={item.label} href={item.href} title={collapsed ? item.label : undefined} className={`nav-item${active === item.label ? " selected" : ""}`} onClick={() => setMobileOpen(false)}><Icon name={item.icon}/><span>{item.label}</span>{item.label === "Domains" && <i className="nav-count">2</i>}</Link>)}</nav>
-      <div className="sidebar-spacer"/>
-      <Link className="sidebar-integration" href="/settings/gateway" title={collapsed ? "Gateway settings" : undefined}><span className="integration-dot"/>{!collapsed && <><span className="integration-copy"><strong>Gateway</strong><small>Not connected</small></span><span className="integration-chevron">↗</span></>}</Link>
-      <Link className={`nav-item settings-item${active === "Settings" ? " selected" : ""}`} href="/settings" title={collapsed ? "Settings" : undefined} onClick={() => setMobileOpen(false)}><Icon name="settings"/><span>Settings</span></Link>
-      <div className="profile-card"><span className="profile-avatar">{initials}</span>{!collapsed && <span className="profile-copy"><strong>{administrator.displayName}</strong><small>{administrator.email}</small><small>Administrator</small></span>}<form action="/auth/sign-out" method="post" className="profile-sign-out-form"><button className="profile-sign-out" type="submit" aria-label="Sign out" title="Sign out"><Icon name="logout" size={15}/><span>Sign out</span></button></form></div>
+  const [notice, setNotice] = useState<Notice | null>(null);
+
+  const segment = pathname === "/" ? "" : `/${pathname.split("/")[1]}`;
+  const activeItem = navigation.find((item) => item.href === (segment || "/")) ?? null;
+  const showsPageHeader = activeItem !== null && pathname === activeItem.href;
+  const selectedClientId = searchParams.get("client");
+  const selectedClient = clients.find((client) => client.id === selectedClientId) ?? null;
+  const initials = initialsOf(administrator.displayName);
+
+  const navigationHref = (item: NavigationItem) => buildHref(item.href, { client: selectedClient?.id });
+  const toggleMenu = (menu: Exclude<OpenMenu, null>) => setOpenMenu((current) => (current === menu ? null : menu));
+  const closeMenus = () => setOpenMenu(null);
+
+  function selectClient(clientId: string | null) {
+    const parameters = new URLSearchParams(searchParams.toString());
+    parameters.delete("domain");
+    if (clientId) parameters.set("client", clientId);
+    else parameters.delete("client");
+    const queryString = parameters.toString();
+    closeMenus();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname);
+  }
+
+  const modalKind = parseModalKind(searchParams.get("modal"));
+
+  function openCreateModal(modal: ModalKind) {
+    closeMenus();
+    if (modal === "domain" && applications.length === 0) return setNotice({ message: "Register a client and an application first", warning: true });
+    if (modal === "application" && clients.length === 0) return setNotice({ message: "Create a client first", warning: true });
+    if (modal === "route" && readyDomains.length === 0) return setNotice({ message: "No domains are ready for a route. A domain needs a verified hostname and an active certificate before it can be published.", warning: true });
+    if (modal === "route" && !applications.some((application) => application.originUrl)) return setNotice({ message: "No application has an origin yet. Set an origin on an application first", warning: true });
+    const parameters = new URLSearchParams(searchParams.toString());
+    parameters.set("modal", modal);
+    router.push(`${pathname}?${parameters.toString()}`, { scroll: false });
+  }
+
+  const navigationLinks = (onNavigate?: () => void) => navigation.map((item) => {
+    const selected = activeItem?.label === item.label;
+    const badge = item.label === "Domains" && attentionCount > 0 ? attentionCount : 0;
+    return <Link key={item.label} href={navigationHref(item)} className={`nav-link${selected ? " is-selected" : ""}`} aria-current={selected ? "page" : undefined} onClick={onNavigate}>
+      <Icon name={item.icon}/>
+      <span>{item.label}</span>
+      {badge > 0 && <i className="nav-badge" aria-label={`${badge} needing attention`}>{badge}</i>}
+    </Link>;
+  });
+
+  return <ShellActionsContext value={{ notify: setNotice, openCreateModal }}><div className="shell">
+    <aside className="sidebar">
+      <Link href="/" aria-label="AppEdge home" className="sidebar-brand"><Brand inverse/></Link>
+      <nav aria-label="Main navigation" className="sidebar-nav">{navigationLinks()}</nav>
+      <div className="user-menu-anchor">
+        <button type="button" className={`user-button${openMenu === "user" ? " is-open" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "user"} onClick={() => toggleMenu("user")}>
+          <span className="user-avatar">{initials}</span>
+          <span className="user-copy"><strong>{administrator.displayName}</strong><small>Administrator</small></span>
+          <Icon name="chevron" size={16}/>
+        </button>
+        {openMenu === "user" && <>
+          <button type="button" className="menu-scrim" aria-label="Close menu" onClick={closeMenus}/>
+          <div role="menu" className="menu menu-above">
+            <Link role="menuitem" className="menu-item" href="/settings" onClick={closeMenus}>Settings</Link>
+            <form action="/auth/sign-out" method="post"><button role="menuitem" type="submit" className="menu-item is-danger">Sign out</button></form>
+          </div>
+        </>}
+      </div>
     </aside>
+
+    {mobileOpen && <>
+      <button type="button" className="drawer-scrim is-navigation" aria-label="Close navigation" onClick={() => setMobileOpen(false)}/>
+      <aside role="dialog" aria-label="Navigation" className="mobile-navigation">
+        <Brand inverse/>
+        <nav aria-label="Main navigation" className="sidebar-nav">{navigationLinks(() => setMobileOpen(false))}</nav>
+        <div className="mobile-user"><span className="user-avatar">{initials}</span><span className="user-copy"><strong>{administrator.displayName}</strong><small>Administrator</small></span></div>
+        <form action="/auth/sign-out" method="post"><button type="submit" className="mobile-sign-out">Sign out</button></form>
+      </aside>
+    </>}
+
     <main className="main-area">
-      <header className="topbar">
-        <button className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMobileOpen(true)}><Icon name="menu"/></button>
-        <div className="breadcrumbs"><span>AppEdge</span><Icon name="chevron" size={14}/><strong>{active}</strong></div>
-        <div className="topbar-actions"><span className="environment"><i/>AppEdge D1</span><span className="topbar-divider"/><button className="icon-button theme-toggle" aria-label={dark ? "Use light theme" : "Use dark theme"} onClick={() => setDark(!dark)}><Icon name={dark ? "sun" : "moon"}/></button><Link className="help-button" href="/help">Help <Icon name="arrow" size={14}/></Link><button className="icon-button collapse-toggle" title={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(!collapsed)}><span className={collapsed ? "flip" : ""}>◧</span></button></div>
-      </header>
-      <div className="content-wrap">{children}</div>
+      <div className="mobile-bar">
+        <button type="button" className="mobile-menu-button" aria-label="Open navigation" onClick={() => setMobileOpen(true)}><Icon name="menu" size={20}/></button>
+        <Brand size={28}/>
+      </div>
+      {showsPageHeader && activeItem && <div className="page-header">
+        <div className="page-title"><h1>{activeItem.title}</h1><p>{activeItem.subtitle}</p></div>
+        <div className="page-actions">
+          <div className="menu-anchor">
+            <button type="button" className={`scope-button${openMenu === "scope" ? " is-open" : ""}`} aria-haspopup="listbox" aria-expanded={openMenu === "scope"} onClick={() => toggleMenu("scope")}>
+              <span className="scope-label">Client</span><strong>{selectedClient?.name ?? "All clients"}</strong><Icon name="chevron" size={16}/>
+            </button>
+            {openMenu === "scope" && <>
+              <button type="button" className="menu-scrim" aria-label="Close menu" onClick={closeMenus}/>
+              <div role="listbox" aria-label="Filter by client" className="menu menu-scope">
+                <span className="menu-heading">Show data for</span>
+                <ScopeOption selected={!selectedClient} label="All clients" meta={`${clients.length} ${clients.length === 1 ? "client" : "clients"}`} initials="∗" background="#F2F4F7" foreground="#475467" onPick={() => selectClient(null)}/>
+                {clients.map((client) => {
+                  const palette = clientPaletteFor(client.id);
+                  return <ScopeOption key={client.id} selected={client.id === selectedClient?.id} label={client.name} meta={client.contactEmail ?? "Not provided"} initials={initialsOf(client.name)} background={palette.background} foreground={palette.foreground} onPick={() => selectClient(client.id)}/>;
+                })}
+              </div>
+            </>}
+          </div>
+          <div className="menu-anchor">
+            <button type="button" className="create-button" aria-haspopup="menu" aria-expanded={openMenu === "create"} onClick={() => toggleMenu("create")}>
+              <Icon name="plus" size={15}/>New<Icon name="chevron" size={16}/>
+            </button>
+            {openMenu === "create" && <>
+              <button type="button" className="menu-scrim" aria-label="Close menu" onClick={closeMenus}/>
+              <div role="menu" className="menu menu-create">
+                {createItems.map((item) => <button key={item.modal} type="button" role="menuitem" className="menu-item has-icon" onClick={() => openCreateModal(item.modal)}>
+                  <span className="menu-icon"><Icon name={item.icon} size={17}/></span>
+                  <span><strong>{item.label}</strong><small>{item.description}</small></span>
+                </button>)}
+              </div>
+            </>}
+          </div>
+        </div>
+      </div>}
+      {children}
     </main>
-  </div>;
+    {modalKind && (modalKind !== "origin" || applications.some((application) => application.id === searchParams.get("application"))) && <RecordModal key={`${modalKind}-${searchParams.get("application") ?? ""}`} kind={modalKind} clients={clients} applications={applications} readyDomains={readyDomains} onNotice={setNotice}/>}
+    {notice && <NoticeDialog notice={notice} onDismiss={() => setNotice(null)}/>}
+  </div></ShellActionsContext>;
+}
+
+function ScopeOption({ selected, label, meta, initials, background, foreground, onPick }: {
+  selected: boolean;
+  label: string;
+  meta: string;
+  initials: string;
+  background: string;
+  foreground: string;
+  onPick: () => void;
+}) {
+  return <button type="button" role="option" aria-selected={selected} className={`menu-item has-icon${selected ? " is-selected" : ""}`} onClick={onPick}>
+    <span className="menu-avatar" style={{ background, color: foreground }}>{initials}</span>
+    <span><strong>{label}</strong><small>{meta}</small></span>
+    {selected && <Icon name="check" size={16}/>}
+  </button>;
 }

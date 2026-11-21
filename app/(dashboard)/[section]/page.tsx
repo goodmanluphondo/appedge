@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getManagementData } from "../../lib/data";
+import { currentTime } from "../../lib/format";
+import { firstValue } from "../../lib/query";
 import { managementSectionForSlug, SectionPage } from "../../section-page";
 
 export default async function Page({ params, searchParams }: PageProps<"/[section]">) {
@@ -8,6 +9,13 @@ export default async function Page({ params, searchParams }: PageProps<"/[sectio
   const section = managementSectionForSlug(slug);
   if (!section) notFound();
   await headers();
-  const data = await getManagementData(section);
-  return <SectionPage section={section} query={typeof query.q === "string" ? query.q : ""} created={query.created === "1"} data={data}/>;
+  return <SectionPage
+    section={section}
+    path={`/${slug}`}
+    scope={firstValue(query.client)}
+    query={firstValue(query.q) ?? ""}
+    filter={firstValue(query.filter) ?? "all"}
+    domainId={firstValue(query.domain)}
+    now={currentTime()}
+  />;
 }
