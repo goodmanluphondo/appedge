@@ -6,6 +6,7 @@ const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
 const DUPLICATE_CUSTOM_HOSTNAME_ERROR_CODE = 1406;
 const CERTIFICATE_VALIDATION_METHOD = "http";
 const CERTIFICATE_TYPE = "dv";
+const ZONE_ID_PATTERN = /^[a-f0-9]{32}$/i;
 
 export type CustomHostname = {
   id: string;
@@ -77,7 +78,11 @@ export function parseCustomHostname(result: unknown): CustomHostname {
 }
 
 function collectionUrl(): string {
-  return `${CLOUDFLARE_API_ORIGIN}/zones/${encodeURIComponent(requireEnv("CLOUDFLARE_ZONE_ID", process.env.CLOUDFLARE_ZONE_ID))}/custom_hostnames`;
+  const zoneId = requireEnv("CLOUDFLARE_ZONE_ID", process.env.CLOUDFLARE_ZONE_ID).trim();
+  if (!ZONE_ID_PATTERN.test(zoneId)) {
+    throw new CloudflareApiError("CLOUDFLARE_ZONE_ID must be the zone's 32-character ID from its Overview page, not its domain name.", []);
+  }
+  return `${CLOUDFLARE_API_ORIGIN}/zones/${zoneId}/custom_hostnames`;
 }
 
 async function callCloudflare(url: string, init: { method: string; body?: unknown }): Promise<unknown> {
