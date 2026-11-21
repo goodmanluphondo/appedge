@@ -6,14 +6,25 @@ export function slugify(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, IDENTIFIER_SLUG_MAXIMUM_LENGTH);
 }
 
-export function normalizeHttpsUrl(value: string): string | null {
-  if (!value) return null;
+const IPV4_LITERAL_PATTERN = /^\d{1,3}(\.\d{1,3}){3}$/;
+const FORBIDDEN_ORIGIN_HOSTNAMES = ["localhost"];
+const FORBIDDEN_ORIGIN_SUFFIXES = [".local", ".internal"];
+
+export function normaliseOriginUrl(value: string): string | null {
+  if (!value || value.includes("?") || value.includes("#")) return null;
+  let url: URL;
   try {
-    const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.includes(".") ? url.toString() : null;
+    url = new URL(value);
   } catch {
     return null;
   }
+  if (url.protocol !== "https:" || url.username || url.password) return null;
+  const hostname = url.hostname.replace(/\.$/, "");
+  const isIpLiteral = hostname.startsWith("[") || IPV4_LITERAL_PATTERN.test(hostname);
+  const isInternalName = FORBIDDEN_ORIGIN_HOSTNAMES.includes(hostname)
+    || FORBIDDEN_ORIGIN_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
+  if (isIpLiteral || isInternalName || !hostname.includes(".")) return null;
+  return url.toString();
 }
 
 export function isHostname(value: string): boolean {

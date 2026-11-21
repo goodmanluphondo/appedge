@@ -9,6 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "eslint",
+    "test": "node scripts/run-tests.mjs",
     "cf:config": "node scripts/generate-wrangler-config.mjs",
     "cf:build": "npm run cf:config && opennextjs-cloudflare build --config wrangler.generated.jsonc",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview --config wrangler.generated.jsonc",

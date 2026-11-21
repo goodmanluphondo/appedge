@@ -6,7 +6,7 @@ import { auditStatement } from "./audit";
 import { getAppEdgeDatabase } from "./d1";
 import { checkIntegration } from "./integration-status";
 import { FORBIDDEN_MESSAGE } from "./permissions";
-import { isEmailAddress, normalizeHttpsUrl, slugify } from "./record-validation";
+import { isEmailAddress, normaliseOriginUrl, slugify } from "./record-validation";
 
 export type ActionFailure = { error: string };
 
@@ -14,7 +14,7 @@ const SAVE_FAILURE_MESSAGE = "The record could not be saved. Check for a duplica
 const CLIENT_NAME_MAXIMUM_LENGTH = 120;
 const DEFAULT_APPLICATION_ENVIRONMENT = "production";
 const APPLICATION_TYPES = ["cloudflare_worker", "external_https"];
-const ORIGIN_ERROR_MESSAGE = "Origin must be an HTTPS URL, for example https://app.example.workers.dev.";
+const ORIGIN_ERROR_MESSAGE = "Origin must be a public HTTPS address without credentials, a query string or a fragment, for example https://app.example.workers.dev.";
 
 function audit(resourceType: string, action: string, resourceId: string, actorName: string) {
   return auditStatement({ resourceType, action, resourceId, actorName });
@@ -62,7 +62,7 @@ export async function createApplicationFromModal(input: {
   if (!name) return { error: "Application name is required." };
   if (name.length > CLIENT_NAME_MAXIMUM_LENGTH) return { error: "Application name must be 120 characters or fewer." };
   if (!APPLICATION_TYPES.includes(input.type)) return { error: "Choose an application type." };
-  const originUrl = normalizeHttpsUrl(originInput);
+  const originUrl = normaliseOriginUrl(originInput);
   if (originInput && !originUrl) return { error: ORIGIN_ERROR_MESSAGE };
 
   const database = getAppEdgeDatabase();
@@ -90,7 +90,7 @@ export async function createApplicationFromModal(input: {
 export async function setApplicationOrigin(input: { applicationId: string; origin: string }): Promise<ActionFailure | { error: null }> {
   const administrator = await authoriseAction("manage");
   if (!administrator) return { error: FORBIDDEN_MESSAGE };
-  const originUrl = normalizeHttpsUrl(input.origin.trim());
+  const originUrl = normaliseOriginUrl(input.origin.trim());
   if (!originUrl) return { error: ORIGIN_ERROR_MESSAGE };
 
   const database = getAppEdgeDatabase();
@@ -149,7 +149,7 @@ export async function publishRoute(input: { domainId: string; applicationId: str
     INNER JOIN clients ON clients.id = applications.client_id
     WHERE applications.id = ? AND applications.status != 'disabled' AND clients.status = 'active'
   `).bind(input.applicationId).first<{ client_id: string; origin_url: string | null }>();
-  if (!application?.origin_url) return { error: "Choose an application that has an origin URL." };
+  if (!application?.origin_url || !normaliseOriginUrl(application.origin_url)) return { error: "Choose an application that has an origin URL." };
 
   const routeStatement = domain.route_id
     ? database.prepare("UPDATE routes SET application_id = ?, status = 'active', published_version = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
