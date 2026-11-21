@@ -1,10 +1,9 @@
-export const ROLES = ["viewer", "administrator", "owner"] as const;
+export const ROLES = ["viewer", "administrator"] as const;
 
 export type Role = (typeof ROLES)[number];
 export type Permission = "view" | "manage" | "settings";
 
 export const ROLE_CLAIMS: Record<Role, string> = {
-  owner: "AppEdge.Owner",
   administrator: "AppEdge.Administrator",
   viewer: "AppEdge.Viewer",
 };
@@ -12,11 +11,10 @@ export const ROLE_CLAIMS: Record<Role, string> = {
 const MINIMUM_ROLE_FOR_PERMISSION: Record<Permission, Role> = {
   view: "viewer",
   manage: "administrator",
-  settings: "owner",
+  settings: "administrator",
 };
 
 const ROLE_LABELS: Record<Role, string> = {
-  owner: "Owner",
   administrator: "Administrator",
   viewer: "Viewer",
 };

@@ -37,6 +37,8 @@ CREATE TABLE domains (
   dns_status TEXT NOT NULL CHECK (dns_status IN ('pending', 'verified', 'failed')),
   ssl_status TEXT NOT NULL CHECK (ssl_status IN ('pending', 'active', 'failed')),
   cloudflare_hostname_id TEXT UNIQUE,
+  cloudflare_status TEXT,
+  status_message TEXT,
   ownership_records TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(ownership_records)),
   certificate_records TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(certificate_records)),
   last_checked_at TEXT,
@@ -85,6 +87,9 @@ CREATE INDEX idx_domains_client_id ON domains(client_id);
 CREATE INDEX idx_domains_application_id ON domains(application_id);
 CREATE INDEX idx_routes_application_id ON routes(application_id);
 CREATE INDEX idx_provisioning_operations_domain_id ON provisioning_operations(domain_id);
+CREATE UNIQUE INDEX idx_provisioning_operations_one_active_per_domain
+  ON provisioning_operations (domain_id)
+  WHERE status IN ('pending', 'running');
 CREATE INDEX idx_audit_events_created_at ON audit_events(created_at DESC);
 
 CREATE TABLE auth_sign_in_attempts (
@@ -111,6 +116,7 @@ CREATE TABLE admin_sessions (
   entra_object_id TEXT NOT NULL,
   email TEXT NOT NULL,
   display_name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('administrator', 'viewer')),
   created_at INTEGER NOT NULL,
   expires_at INTEGER NOT NULL,
   revoked_at INTEGER

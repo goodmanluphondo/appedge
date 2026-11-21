@@ -1,5 +1,5 @@
 import "server-only";
-import { requireEnv } from "../../lib/.env";
+import { requireEnv } from "../../lib/require-env";
 
 const GRAPHQL_ENDPOINT = "https://api.cloudflare.com/client/v4/graphql";
 const REQUEST_TIMEOUT_MILLISECONDS = 6_000;

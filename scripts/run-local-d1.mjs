@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
-import { requireEnv } from "../lib/.env.mjs";
+import { requireEnv } from "../lib/require-env.mjs";
 import { generateWranglerConfig } from "../lib/wrangler-config.mjs";
 
 for (const filename of [".env.local", ".env"]) {

@@ -1,5 +1,5 @@
 import "server-only";
-import { requireEnv } from "../../lib/.env";
+import { requireEnv } from "../../lib/require-env";
 
 const CLOUDFLARE_API_ORIGIN = "https://api.cloudflare.com/client/v4";
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000;

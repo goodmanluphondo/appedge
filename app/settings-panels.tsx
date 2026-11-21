@@ -16,7 +16,8 @@ function integrationsFor(edgeHostname: string): Integration[] {
 }
 
 const ROLES = [
-  { name: "Administrator", description: "Manage clients, applications, domains and routes." },
+  { name: "Administrator", description: "Manage clients, applications, domains and routes, and view settings." },
+  { name: "Viewer", description: "Read-only access to infrastructure information." },
 ];
 
 export function SettingsPanels({ edgeHostname }: { edgeHostname: string }) {

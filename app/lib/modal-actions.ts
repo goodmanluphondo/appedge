@@ -197,8 +197,8 @@ export async function deactivateRoute(domainId: string): Promise<ActionFailure |
 }
 
 export async function testIntegration(name: string): Promise<{ ok: boolean; message: string }> {
-  const owner = await authoriseAction("settings");
-  if (!owner) return { ok: false, message: FORBIDDEN_MESSAGE };
+  const settingsUser = await authoriseAction("settings");
+  if (!settingsUser) return { ok: false, message: FORBIDDEN_MESSAGE };
   switch (name) {
     case "Cloudflare D1":
       try {

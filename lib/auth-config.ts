@@ -1,6 +1,6 @@
 import "server-only";
 import { getAppEdgeDatabase, type AppEdgeD1Database } from "../app/lib/d1";
-import { requireEnv } from "./.env";
+import { requireEnv } from "./require-env";
 
 export type AppEdgeAuthConfig = {
   db: AppEdgeD1Database;
