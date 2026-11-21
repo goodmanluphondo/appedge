@@ -2,7 +2,7 @@ import { AddRouteButton } from "./route-actions";
 import { DataTable } from "./data-table";
 import { DomainDrawer } from "./domain-drawer";
 import { requirePermissionOrRedirect } from "../lib/auth";
-import { getEdgeHostname } from "./lib/edge";
+import { getIntegrationSummaries } from "./lib/integration-status";
 import { SettingsPanels } from "./settings-panels";
 import type { ClientScope, ManagementSection } from "./lib/data";
 import { buildHref } from "./lib/query";
@@ -30,7 +30,8 @@ export async function SectionPage({ section, path, scope, query, filter, domainI
 
   if (section === "Settings") {
     await requirePermissionOrRedirect("settings");
-    return <SettingsPanels edgeHostname={getEdgeHostname()}/>;
+    const summaries = await getIntegrationSummaries();
+    return <SettingsPanels integrations={summaries.map((summary) => ({ name: summary.name, description: summary.description, state: summary.check.state }))}/>;
   }
 
   const table = await getSectionTable(section, scope, filter, now);

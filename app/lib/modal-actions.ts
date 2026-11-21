@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { authoriseAction } from "../../lib/auth";
 import { auditStatement } from "./audit";
 import { getAppEdgeDatabase } from "./d1";
+import { checkIntegration } from "./integration-status";
 import { FORBIDDEN_MESSAGE } from "./permissions";
 import { isEmailAddress, normalizeHttpsUrl, slugify } from "./record-validation";
 
@@ -199,22 +200,6 @@ export async function deactivateRoute(domainId: string): Promise<ActionFailure |
 export async function testIntegration(name: string): Promise<{ ok: boolean; message: string }> {
   const settingsUser = await authoriseAction("settings");
   if (!settingsUser) return { ok: false, message: FORBIDDEN_MESSAGE };
-  switch (name) {
-    case "Cloudflare D1":
-      try {
-        await getAppEdgeDatabase().prepare("SELECT 1 AS ok").first();
-        return { ok: true, message: "Cloudflare D1 responded OK" };
-      } catch {
-        return { ok: false, message: "Cloudflare D1 did not respond." };
-      }
-    case "Microsoft Entra ID": {
-      const required = ["AUTH_MICROSOFT_ENTRA_ID_TENANT_ID", "AUTH_MICROSOFT_ENTRA_ID_CLIENT_ID", "AUTH_MICROSOFT_ENTRA_ID_CLIENT_SECRET"];
-      const missing = required.filter((variable) => !process.env[variable]);
-      return missing.length === 0
-        ? { ok: true, message: "Microsoft Entra ID is configured and your session is valid." }
-        : { ok: false, message: `Microsoft Entra ID is missing ${missing.join(", ")}.` };
-    }
-    default:
-      return { ok: false, message: `${name} is not connected yet.` };
-  }
+  const check = await checkIntegration(name);
+  return { ok: check.state === "connected", message: check.message };
 }

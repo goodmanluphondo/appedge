@@ -138,3 +138,7 @@ export async function requestRevalidation(customHostnameId: string): Promise<Cus
 export async function deleteCustomHostname(customHostnameId: string): Promise<void> {
   await callCloudflare(`${collectionUrl()}/${encodeURIComponent(customHostnameId)}`, { method: "DELETE" });
 }
+
+export async function confirmCustomHostnameAccess(): Promise<void> {
+  await callCloudflare(`${collectionUrl()}?per_page=1`, { method: "GET" });
+}
