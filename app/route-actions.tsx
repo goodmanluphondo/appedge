@@ -1,13 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { activateRoute, deactivateRoute, removeDomain } from "./lib/modal-actions";
+import { useTransition, type ReactNode } from "react";
+import { checkDomain, removeDomain } from "./lib/domain-actions";
+import { activateRoute, deactivateRoute } from "./lib/modal-actions";
 import { useShellActions } from "./shell-actions";
 
+const READ_ONLY_MESSAGE = "Viewer role is read-only";
+
 export function ActivateRouteButton({ domainId, hostname, variant }: { domainId: string; hostname: string; variant: "card" | "drawer" }) {
-  const { notify } = useShellActions();
+  const { notify, canManage } = useShellActions();
   const [pending, startTransition] = useTransition();
+  if (!canManage) return null;
 
   function activate() {
     startTransition(async () => {
@@ -21,9 +26,28 @@ export function ActivateRouteButton({ domainId, hostname, variant }: { domainId:
   return <button type="button" className={variant === "card" ? "card-action is-primary" : "drawer-primary"} disabled={pending} onClick={activate}>{pending ? "Publishing…" : "Activate route"}</button>;
 }
 
-export function DeactivateRouteButton({ domainId }: { domainId: string }) {
-  const { notify } = useShellActions();
+export function CheckDomainButton({ domainId, label, variant }: { domainId: string; label: string; variant: "card" | "drawer" | "attention" }) {
+  const { notify, canManage } = useShellActions();
   const [pending, startTransition] = useTransition();
+  if (!canManage) return null;
+
+  function check() {
+    startTransition(async () => {
+      const result = await checkDomain(domainId);
+      if (result.error !== null) return notify({ message: result.error, warning: true });
+      notify({ message: result.message, warning: result.warning });
+    });
+  }
+
+  if (pending && variant === "card") return <div className="busy-indicator"><span className="spinner"/>Checking…</div>;
+  const className = variant === "card" ? "card-action" : variant === "drawer" ? "drawer-primary" : "attention-action";
+  return <button type="button" className={className} disabled={pending} onClick={check}>{pending ? "Checking…" : label}</button>;
+}
+
+export function DeactivateRouteButton({ domainId }: { domainId: string }) {
+  const { notify, canManage } = useShellActions();
+  const [pending, startTransition] = useTransition();
+  if (!canManage) return null;
 
   function deactivate() {
     startTransition(async () => {
@@ -38,8 +62,9 @@ export function DeactivateRouteButton({ domainId }: { domainId: string }) {
 
 export function RemoveDomainButton({ domainId, closeHref }: { domainId: string; closeHref: string }) {
   const router = useRouter();
-  const { notify } = useShellActions();
+  const { notify, canManage } = useShellActions();
   const [pending, startTransition] = useTransition();
+  if (!canManage) return <span className="read-only-note">Read-only access</span>;
 
   function remove() {
     startTransition(async () => {
@@ -54,10 +79,11 @@ export function RemoveDomainButton({ domainId, closeHref }: { domainId: string; 
 }
 
 export function RouteSwitch({ domainId, hostname, on }: { domainId: string; hostname: string; on: boolean }) {
-  const { notify } = useShellActions();
+  const { notify, canManage } = useShellActions();
   const [pending, startTransition] = useTransition();
 
   function toggle() {
+    if (!canManage) return notify({ message: READ_ONLY_MESSAGE, warning: true });
     startTransition(async () => {
       const result = on ? await deactivateRoute(domainId) : await activateRoute(domainId);
       if (result.error !== null) return notify({ message: result.error, warning: true });
@@ -65,10 +91,17 @@ export function RouteSwitch({ domainId, hostname, on }: { domainId: string; host
     });
   }
 
-  return <button type="button" role="switch" aria-checked={on} aria-label={`${hostname} route`} className={`switch${on ? " is-on" : ""}`} disabled={pending} onClick={toggle}><i/></button>;
+  return <button type="button" role="switch" aria-checked={on} aria-label={`${hostname} route`} className={`switch${on ? " is-on" : ""}${canManage ? "" : " is-read-only"}`} disabled={pending} onClick={toggle}><i/></button>;
 }
 
 export function AddRouteButton() {
-  const { openCreateModal } = useShellActions();
+  const { openCreateModal, canManage } = useShellActions();
+  if (!canManage) return null;
   return <button type="button" className="add-route-button" onClick={() => openCreateModal("route")}>Add route</button>;
+}
+
+export function OriginAction({ href, className, children }: { href: string; className: string; children: ReactNode }) {
+  const { notify, canManage } = useShellActions();
+  if (canManage) return <Link className={className} href={href} scroll={false}>{children}</Link>;
+  return <button type="button" className={className} onClick={() => notify({ message: READ_ONLY_MESSAGE, warning: true })}>{children}</button>;
 }

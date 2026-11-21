@@ -3,11 +3,12 @@ import { Suspense, type ReactNode } from "react";
 import { CopyButton } from "./copy-button";
 import { Icon, type IconName } from "./icons";
 import { RetryButton } from "./retry-button";
-import { ActivateRouteButton, DeactivateRouteButton, RemoveDomainButton } from "./route-actions";
+import { ActivateRouteButton, CheckDomainButton, DeactivateRouteButton, RemoveDomainButton } from "./route-actions";
 import { getDomainById, getDomainHistory, type ActivityRecord, type DomainRecord } from "./lib/data";
 import {
   PIPELINE_STAGES,
   buildDnsRecords,
+  domainActionLabel,
   domainFailureGuidance,
   domainState,
   domainStatusText,
@@ -128,6 +129,11 @@ async function LoadedDrawer({ domainId, closeHref, now }: { domainId: string; cl
         </div>)}
       </section>
       <section>
+        <h3 className="drawer-section-title">CLOUDFLARE</h3>
+        <div className="history-row"><span>Custom hostname</span><strong>{domain.cloudflareStatus ? domain.cloudflareStatus.replaceAll("_", " ") : "Not registered"}</strong></div>
+        <div className="history-row"><span>Last checked</span><time>{domain.lastCheckedAt ? formatRelativeTime(domain.lastCheckedAt, now) : "Never"}</time></div>
+      </section>
+      <section>
         <h3 className="drawer-section-title">HISTORY</h3>
         {history.map((event) => <div className="history-row" key={event.id}><span>{event.action}</span><time>{formatRelativeTime(event.createdAt, now)}</time></div>)}
         {history.length === 0 && <p className="drawer-empty">No events recorded yet.</p>}
@@ -135,6 +141,7 @@ async function LoadedDrawer({ domainId, closeHref, now }: { domainId: string; cl
     </div>
     <div className="drawer-footer">
       {state === "ready" && <ActivateRouteButton domainId={domain.id} hostname={domain.hostname} variant="drawer"/>}
+      {state !== "ready" && state !== "live" && domainActionLabel(domain) && <CheckDomainButton domainId={domain.id} label={domainActionLabel(domain) ?? ""} variant="drawer"/>}
       {state === "live" && <DeactivateRouteButton domainId={domain.id}/>}
       <span className="spacer"/>
       <RemoveDomainButton domainId={domain.id} closeHref={closeHref}/>

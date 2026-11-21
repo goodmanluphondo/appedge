@@ -4,14 +4,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import { Icon } from "./icons";
 import { clientPaletteFor, initialsOf } from "./lib/format";
+import { addDomainFromModal, type DnsInstruction } from "./lib/domain-actions";
 import {
   createApplicationFromModal,
   createClientFromModal,
-  createDomainFromModal,
-  prepareDomainFromModal,
   publishRoute,
   setApplicationOrigin,
-  type DnsInstruction,
 } from "./lib/modal-actions";
 import type { ShellApplication, ShellClient, ShellReadyDomain } from "./lib/data";
 
@@ -54,7 +52,7 @@ export function RecordModal({ kind, clients, applications, readyDomains, onNotic
   const [hostname, setHostname] = useState("");
   const [applicationId, setApplicationId] = useState(applications[0]?.id ?? "");
   const [step, setStep] = useState<"details" | "records">("details");
-  const [verification, setVerification] = useState<{ token: string; records: DnsInstruction[] } | null>(null);
+  const [registered, setRegistered] = useState<{ domainId: string; records: DnsInstruction[] } | null>(null);
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [ownerId, setOwnerId] = useState(clients[0]?.id ?? "");
@@ -94,6 +92,11 @@ export function RecordModal({ kind, clients, applications, readyDomains, onNotic
     }
     const queryString = parameters.toString();
     router.replace(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+  }
+
+  function dismiss() {
+    close();
+    if (registered) router.refresh();
   }
 
   function navigateAfterSave(path: string, extra: Record<string, string> = {}) {
@@ -151,27 +154,23 @@ export function RecordModal({ kind, clients, applications, readyDomains, onNotic
 
   function continueDomain() {
     run(async () => {
-      const result = await prepareDomainFromModal({ hostname, applicationId });
+      const result = await addDomainFromModal({ hostname, applicationId });
       if (result.error !== null) return setError(result.error);
       setHostname(result.hostname);
-      setVerification({ token: result.verificationToken, records: result.records });
+      setRegistered({ domainId: result.domainId, records: result.records });
       setStep("records");
     });
   }
 
-  function submitDomain() {
-    if (!verification) return;
-    run(async () => {
-      const result = await createDomainFromModal({ hostname, applicationId, verificationToken: verification.token });
-      if (result.error !== null) return setError(result.error);
-      navigateAfterSave("/", { domain: result.domainId });
-      onNotice({ message: "Domain added. Waiting for the TXT record.", warning: false });
-    });
+  function finishDomain() {
+    if (!registered) return;
+    navigateAfterSave("/", { domain: registered.domainId });
+    onNotice({ message: "Domain added. Waiting for the TXT record.", warning: false });
   }
 
   const copy = {
     domain: step === "records"
-      ? { title: "Add these DNS records", subtitle: "Send these to whoever manages the domain's DNS.", cta: "Add domain", submit: submitDomain }
+      ? { title: "Add these DNS records", subtitle: "Send these to whoever manages the domain's DNS.", cta: "Add domain", submit: finishDomain }
       : { title: "Add a domain", subtitle: "Choose the hostname and the application it should route to.", cta: "Continue", submit: continueDomain },
     route: { title: "Add a route", subtitle: "Publish a ready domain to an application origin.", cta: "Publish route", submit: submitRoute },
     client: { title: "Create a client", subtitle: "An organisation that owns applications and domains.", cta: "Create client", submit: submitClient },
@@ -184,7 +183,7 @@ export function RecordModal({ kind, clients, applications, readyDomains, onNotic
     setter(value);
   };
 
-  return <div className="modal-scrim" onClick={() => close()}>
+  return <div className="modal-scrim" onClick={dismiss}>
     <form className="modal" role="dialog" aria-modal="true" aria-labelledby="record-modal-title" onClick={(event) => event.stopPropagation()} onSubmit={(event) => { event.preventDefault(); copy.submit(); }}>
       <div className="modal-heading"><h2 id="record-modal-title">{copy.title}</h2><p>{copy.subtitle}</p></div>
       <div className="modal-fields">
@@ -192,8 +191,8 @@ export function RecordModal({ kind, clients, applications, readyDomains, onNotic
           <TextField label="Hostname" value={hostname} onChange={updating(setHostname)} placeholder="portal.example.com" mono icon="globe"/>
           <SelectField label="Application" name="application" options={applicationOptions} value={applicationId} onChange={updating(setApplicationId)} open={openSelect === "application"} onToggle={() => setOpenSelect(openSelect === "application" ? null : "application")} onClose={() => setOpenSelect(null)}/>
         </>}
-        {kind === "domain" && step === "records" && verification && <>
-          {verification.records.map((record) => <InstructionRecord key={`${record.type}-${record.name}`} record={record}/>)}
+        {kind === "domain" && step === "records" && registered && <>
+          {registered.records.map((record) => <InstructionRecord key={`${record.type}-${record.name}`} record={record}/>)}
           <p className="modal-note">The domain owner keeps their registrar and nameservers. AppEdge starts validating as soon as these records resolve.</p>
         </>}
         {kind === "route" && <>
@@ -216,7 +215,7 @@ export function RecordModal({ kind, clients, applications, readyDomains, onNotic
         {error && <p role="alert" className="modal-error">{error}</p>}
       </div>
       <div className="modal-actions">
-        <button type="button" className="modal-cancel" onClick={() => close()}>Cancel</button>
+        <button type="button" className="modal-cancel" onClick={dismiss}>Cancel</button>
         <button type="submit" className="modal-submit" disabled={pending}>{copy.cta}</button>
       </div>
     </form>

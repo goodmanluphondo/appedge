@@ -7,7 +7,8 @@ import { Brand } from "./brand";
 import { Icon, type IconName } from "./icons";
 import { clientPaletteFor, initialsOf } from "./lib/format";
 import { buildHref } from "./lib/query";
-import type { AuthenticatedAdministrator } from "../lib/auth";
+import { roleAllows, roleLabel } from "./lib/permissions";
+import type { AuthenticatedUser } from "../lib/auth";
 import { NoticeDialog, RecordModal, parseModalKind, type ModalKind, type Notice } from "./record-modal";
 import { ShellActionsContext } from "./shell-actions";
 import type { ShellApplication, ShellClient, ShellReadyDomain } from "./lib/data";
@@ -33,9 +34,9 @@ const createItems: { label: string; description: string; modal: ModalKind; icon:
 
 type OpenMenu = "scope" | "create" | "user" | null;
 
-export function DashboardShell({ children, administrator, clients, applications, readyDomains, attentionCount }: {
+export function DashboardShell({ children, user, clients, applications, readyDomains, attentionCount }: {
   children: ReactNode;
-  administrator: AuthenticatedAdministrator;
+  user: AuthenticatedUser;
   clients: ShellClient[];
   applications: ShellApplication[];
   readyDomains: ShellReadyDomain[];
@@ -48,12 +49,16 @@ export function DashboardShell({ children, administrator, clients, applications,
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
 
+  const canManage = roleAllows(user.role, "manage");
+  const canViewSettings = roleAllows(user.role, "settings");
+  const visibleNavigation = navigation.filter((item) => item.href !== "/settings" || canViewSettings);
+
   const segment = pathname === "/" ? "" : `/${pathname.split("/")[1]}`;
-  const activeItem = navigation.find((item) => item.href === (segment || "/")) ?? null;
+  const activeItem = visibleNavigation.find((item) => item.href === (segment || "/")) ?? null;
   const showsPageHeader = activeItem !== null && pathname === activeItem.href;
   const selectedClientId = searchParams.get("client");
   const selectedClient = clients.find((client) => client.id === selectedClientId) ?? null;
-  const initials = initialsOf(administrator.displayName);
+  const initials = initialsOf(user.displayName);
 
   const navigationHref = (item: NavigationItem) => buildHref(item.href, { client: selectedClient?.id });
   const toggleMenu = (menu: Exclude<OpenMenu, null>) => setOpenMenu((current) => (current === menu ? null : menu));
@@ -69,7 +74,7 @@ export function DashboardShell({ children, administrator, clients, applications,
     router.push(queryString ? `${pathname}?${queryString}` : pathname);
   }
 
-  const modalKind = parseModalKind(searchParams.get("modal"));
+  const modalKind = canManage ? parseModalKind(searchParams.get("modal")) : null;
 
   function openCreateModal(modal: ModalKind) {
     closeMenus();
@@ -82,7 +87,7 @@ export function DashboardShell({ children, administrator, clients, applications,
     router.push(`${pathname}?${parameters.toString()}`, { scroll: false });
   }
 
-  const navigationLinks = (onNavigate?: () => void) => navigation.map((item) => {
+  const navigationLinks = (onNavigate?: () => void) => visibleNavigation.map((item) => {
     const selected = activeItem?.label === item.label;
     const badge = item.label === "Domains" && attentionCount > 0 ? attentionCount : 0;
     return <Link key={item.label} href={navigationHref(item)} className={`nav-link${selected ? " is-selected" : ""}`} aria-current={selected ? "page" : undefined} onClick={onNavigate}>
@@ -92,14 +97,14 @@ export function DashboardShell({ children, administrator, clients, applications,
     </Link>;
   });
 
-  return <ShellActionsContext value={{ notify: setNotice, openCreateModal }}><div className="shell">
+  return <ShellActionsContext value={{ notify: setNotice, openCreateModal, canManage }}><div className="shell">
     <aside className="sidebar">
       <Link href="/" aria-label="AppEdge home" className="sidebar-brand"><Brand inverse/></Link>
       <nav aria-label="Main navigation" className="sidebar-nav">{navigationLinks()}</nav>
       <div className="user-menu-anchor">
         <button type="button" className={`user-button${openMenu === "user" ? " is-open" : ""}`} aria-haspopup="menu" aria-expanded={openMenu === "user"} onClick={() => toggleMenu("user")}>
           <span className="user-avatar">{initials}</span>
-          <span className="user-copy"><strong>{administrator.displayName}</strong><small>Administrator</small></span>
+          <span className="user-copy"><strong>{user.displayName}</strong><small>{roleLabel(user.role)}</small></span>
           <Icon name="chevron" size={16}/>
         </button>
         {openMenu === "user" && <>
@@ -117,7 +122,7 @@ export function DashboardShell({ children, administrator, clients, applications,
       <aside role="dialog" aria-label="Navigation" className="mobile-navigation">
         <Brand inverse/>
         <nav aria-label="Main navigation" className="sidebar-nav">{navigationLinks(() => setMobileOpen(false))}</nav>
-        <div className="mobile-user"><span className="user-avatar">{initials}</span><span className="user-copy"><strong>{administrator.displayName}</strong><small>Administrator</small></span></div>
+        <div className="mobile-user"><span className="user-avatar">{initials}</span><span className="user-copy"><strong>{user.displayName}</strong><small>{roleLabel(user.role)}</small></span></div>
         <form action="/auth/sign-out" method="post"><button type="submit" className="mobile-sign-out">Sign out</button></form>
       </aside>
     </>}
@@ -146,20 +151,22 @@ export function DashboardShell({ children, administrator, clients, applications,
               </div>
             </>}
           </div>
+          {canManage ? (
           <div className="menu-anchor">
-            <button type="button" className="create-button" aria-haspopup="menu" aria-expanded={openMenu === "create"} onClick={() => toggleMenu("create")}>
-              <Icon name="plus" size={15}/>New<Icon name="chevron" size={16}/>
-            </button>
-            {openMenu === "create" && <>
-              <button type="button" className="menu-scrim" aria-label="Close menu" onClick={closeMenus}/>
-              <div role="menu" className="menu menu-create">
-                {createItems.map((item) => <button key={item.modal} type="button" role="menuitem" className="menu-item has-icon" onClick={() => openCreateModal(item.modal)}>
-                  <span className="menu-icon"><Icon name={item.icon} size={17}/></span>
-                  <span><strong>{item.label}</strong><small>{item.description}</small></span>
-                </button>)}
-              </div>
-            </>}
-          </div>
+              <button type="button" className="create-button" aria-haspopup="menu" aria-expanded={openMenu === "create"} onClick={() => toggleMenu("create")}>
+                <Icon name="plus" size={15}/>New<Icon name="chevron" size={16}/>
+              </button>
+              {openMenu === "create" && <>
+                <button type="button" className="menu-scrim" aria-label="Close menu" onClick={closeMenus}/>
+                <div role="menu" className="menu menu-create">
+                  {createItems.map((item) => <button key={item.modal} type="button" role="menuitem" className="menu-item has-icon" onClick={() => openCreateModal(item.modal)}>
+                    <span className="menu-icon"><Icon name={item.icon} size={17}/></span>
+                    <span><strong>{item.label}</strong><small>{item.description}</small></span>
+                  </button>)}
+                </div>
+              </>}
+            </div>
+          ) : <span className="read-only-badge"><Icon name="lock" size={14}/>Read-only access</span>}
         </div>
       </div>}
       {children}

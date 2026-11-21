@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { RouteSwitch } from "./route-actions";
+import { OriginAction, RouteSwitch } from "./route-actions";
 import { SearchField } from "./search-field";
 import { buildHref, type QueryValues } from "./lib/query";
 import type { SectionTable, TableCell } from "./lib/section-tables";
@@ -27,11 +27,10 @@ export function DataTable({ table, path, query, parameters, actions }: {
       <div className="table-scroll"><table>
         <thead><tr>{table.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
         <tbody>{rows.map((row) => {
-          const href = row.domainId
-            ? buildHref(path, { ...parameters, domain: row.domainId })
-            : row.originApplicationId ? buildHref(path, { ...parameters, modal: "origin", application: row.originApplicationId }) : null;
-          return <tr key={row.key} className={href ? "is-clickable" : undefined}>{row.cells.map((cell, index) => <td key={index}>
-            {index === 0 && href ? <Link href={href} scroll={false} className="row-link"><Cell cell={cell}/></Link> : <Cell cell={cell}/>}
+          const href = row.domainId ? buildHref(path, { ...parameters, domain: row.domainId }) : null;
+          const originHref = row.originApplicationId ? buildHref(path, { ...parameters, modal: "origin", application: row.originApplicationId }) : null;
+          return <tr key={row.key} className={href || originHref ? "is-clickable" : undefined}>{row.cells.map((cell, index) => <td key={index}>
+            {index === 0 && href ? <Link href={href} scroll={false} className="row-link"><Cell cell={cell}/></Link> : index === 0 && originHref ? <OriginAction href={originHref} className="row-link"><Cell cell={cell}/></OriginAction> : <Cell cell={cell}/>}
           </td>)}</tr>;
         })}</tbody>
       </table></div>

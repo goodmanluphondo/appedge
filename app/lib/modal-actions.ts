@@ -1,26 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdministrator } from "../../lib/auth";
-import { requireEnv } from "../../lib/.env";
+import { authoriseAction } from "../../lib/auth";
+import { auditStatement } from "./audit";
 import { getAppEdgeDatabase } from "./d1";
-import { isEmailAddress, isHostname, normalizeHttpsUrl, slugify } from "./record-validation";
+import { FORBIDDEN_MESSAGE } from "./permissions";
+import { isEmailAddress, normalizeHttpsUrl, slugify } from "./record-validation";
 
 export type ActionFailure = { error: string };
-export type DnsInstruction = { type: "TXT" | "CNAME"; name: string; value: string };
 
 const SAVE_FAILURE_MESSAGE = "The record could not be saved. Check for a duplicate name or hostname and try again.";
 const CLIENT_NAME_MAXIMUM_LENGTH = 120;
-const VERIFICATION_TOKEN_PATTERN = /^[a-f0-9]{32}$/;
 const DEFAULT_APPLICATION_ENVIRONMENT = "production";
 const APPLICATION_TYPES = ["cloudflare_worker", "external_https"];
 const ORIGIN_ERROR_MESSAGE = "Origin must be an HTTPS URL, for example https://app.example.workers.dev.";
 
-function audit(resourceType: string, action: string, resourceId: string, actorName: string, metadata: Record<string, string> = {}) {
-  return getAppEdgeDatabase().prepare(`
-    INSERT INTO audit_events (id, actor_name, action, resource_type, resource_id, outcome, metadata)
-    VALUES (?, ?, ?, ?, ?, 'success', ?)
-  `).bind(crypto.randomUUID(), actorName, action, resourceType, resourceId, JSON.stringify(metadata));
+function audit(resourceType: string, action: string, resourceId: string, actorName: string) {
+  return auditStatement({ resourceType, action, resourceId, actorName });
 }
 
 function refreshDashboard() {
@@ -28,7 +24,8 @@ function refreshDashboard() {
 }
 
 export async function createClientFromModal(input: { name: string; email: string }): Promise<ActionFailure | { error: null }> {
-  const administrator = await requireAdministrator();
+  const administrator = await authoriseAction("manage");
+  if (!administrator) return { error: FORBIDDEN_MESSAGE };
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
   if (!name) return { error: "Client name is required." };
@@ -57,7 +54,8 @@ export async function createApplicationFromModal(input: {
   type: string;
   origin: string;
 }): Promise<ActionFailure | { error: null; hasOrigin: boolean }> {
-  const administrator = await requireAdministrator();
+  const administrator = await authoriseAction("manage");
+  if (!administrator) return { error: FORBIDDEN_MESSAGE };
   const name = input.name.trim();
   const originInput = input.origin.trim();
   if (!name) return { error: "Application name is required." };
@@ -89,7 +87,8 @@ export async function createApplicationFromModal(input: {
 }
 
 export async function setApplicationOrigin(input: { applicationId: string; origin: string }): Promise<ActionFailure | { error: null }> {
-  const administrator = await requireAdministrator();
+  const administrator = await authoriseAction("manage");
+  if (!administrator) return { error: FORBIDDEN_MESSAGE };
   const originUrl = normalizeHttpsUrl(input.origin.trim());
   if (!originUrl) return { error: ORIGIN_ERROR_MESSAGE };
 
@@ -109,84 +108,6 @@ export async function setApplicationOrigin(input: { applicationId: string; origi
   }
   refreshDashboard();
   return { error: null };
-}
-
-function ownershipRecordName(hostname: string): string {
-  return `_appedge.${hostname}`;
-}
-
-function ownershipRecordValue(token: string): string {
-  return `appedge-verify=${token}`;
-}
-
-export async function prepareDomainFromModal(input: { hostname: string; applicationId: string }): Promise<ActionFailure | {
-  error: null;
-  hostname: string;
-  verificationToken: string;
-  records: DnsInstruction[];
-}> {
-  await requireAdministrator();
-  const hostname = input.hostname.trim().toLowerCase().replace(/\.$/, "");
-  if (!isHostname(hostname)) return { error: "Enter a valid hostname, for example portal.example.com." };
-
-  const database = getAppEdgeDatabase();
-  const existing = await database.prepare("SELECT id FROM domains WHERE hostname = ?").bind(hostname).first<{ id: string }>();
-  if (existing) return { error: "This hostname is already registered." };
-  const application = await findAttachableApplication(input.applicationId);
-  if (!application) return { error: "Select an application attached to an active client." };
-
-  const verificationToken = crypto.randomUUID().replaceAll("-", "");
-  const edgeHostname = requireEnv("APPEDGE_EDGE_HOSTNAME", process.env.APPEDGE_EDGE_HOSTNAME);
-  return {
-    error: null,
-    hostname,
-    verificationToken,
-    records: [
-      { type: "TXT", name: ownershipRecordName(hostname), value: ownershipRecordValue(verificationToken) },
-      { type: "CNAME", name: hostname, value: edgeHostname },
-    ],
-  };
-}
-
-async function findAttachableApplication(applicationId: string): Promise<{ client_id: string } | null> {
-  return getAppEdgeDatabase().prepare(`
-    SELECT applications.client_id FROM applications
-    INNER JOIN clients ON clients.id = applications.client_id
-    WHERE applications.id = ? AND applications.status != 'disabled' AND clients.status = 'active'
-  `).bind(applicationId).first<{ client_id: string }>();
-}
-
-export async function createDomainFromModal(input: {
-  hostname: string;
-  applicationId: string;
-  verificationToken: string;
-}): Promise<ActionFailure | { error: null; domainId: string }> {
-  const administrator = await requireAdministrator();
-  const hostname = input.hostname.trim().toLowerCase();
-  if (!isHostname(hostname)) return { error: "Enter a valid hostname, for example portal.example.com." };
-  if (!VERIFICATION_TOKEN_PATTERN.test(input.verificationToken)) return { error: "The DNS records have expired. Go back and continue again." };
-  const application = await findAttachableApplication(input.applicationId);
-  if (!application) return { error: "Select an application attached to an active client." };
-
-  const edgeHostname = requireEnv("APPEDGE_EDGE_HOSTNAME", process.env.APPEDGE_EDGE_HOSTNAME);
-  const ownershipRecords = JSON.stringify([
-    { type: "TXT", name: ownershipRecordName(hostname), value: ownershipRecordValue(input.verificationToken) },
-  ]);
-  const database = getAppEdgeDatabase();
-  const domainId = crypto.randomUUID();
-  try {
-    await database.batch([
-      database.prepare(`
-        INSERT INTO domains (id, client_id, application_id, hostname, cname_target, ownership_records, ownership_status, dns_status, ssl_status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending', 'pending')
-      `).bind(domainId, application.client_id, input.applicationId, hostname, edgeHostname, ownershipRecords),
-      audit("domain", "Domain added", domainId, administrator.displayName),
-    ]);
-  } catch {
-    return { error: "This hostname is already registered." };
-  }
-  refreshDashboard();
-  return { error: null, domainId };
 }
 
 type RouteDomainRow = {
@@ -213,7 +134,8 @@ async function findDomainForRoute(domainId: string): Promise<RouteDomainRow | nu
 }
 
 export async function publishRoute(input: { domainId: string; applicationId: string }): Promise<ActionFailure | { error: null; hostname: string }> {
-  const administrator = await requireAdministrator();
+  const administrator = await authoriseAction("manage");
+  if (!administrator) return { error: FORBIDDEN_MESSAGE };
   const domain = await findDomainForRoute(input.domainId);
   if (!domain) return { error: "Select a registered domain." };
   const certificateActive = domain.ownership_status === "verified" && domain.dns_status === "verified" && domain.ssl_status === "active";
@@ -250,13 +172,15 @@ export async function publishRoute(input: { domainId: string; applicationId: str
 }
 
 export async function activateRoute(domainId: string): Promise<ActionFailure | { error: null; hostname: string }> {
+  if (!(await authoriseAction("manage"))) return { error: FORBIDDEN_MESSAGE };
   const domain = await findDomainForRoute(domainId);
   if (!domain) return { error: "Select a registered domain." };
   return publishRoute({ domainId, applicationId: domain.application_id });
 }
 
 export async function deactivateRoute(domainId: string): Promise<ActionFailure | { error: null }> {
-  const administrator = await requireAdministrator();
+  const administrator = await authoriseAction("manage");
+  if (!administrator) return { error: FORBIDDEN_MESSAGE };
   const domain = await findDomainForRoute(domainId);
   if (!domain?.route_id) return { error: "This domain has no route to deactivate." };
   const database = getAppEdgeDatabase();
@@ -272,26 +196,9 @@ export async function deactivateRoute(domainId: string): Promise<ActionFailure |
   return { error: null };
 }
 
-export async function removeDomain(domainId: string): Promise<ActionFailure | { error: null }> {
-  const administrator = await requireAdministrator();
-  const domain = await findDomainForRoute(domainId);
-  if (!domain) return { error: "This domain no longer exists." };
-  const database = getAppEdgeDatabase();
-  try {
-    await database.batch([
-      database.prepare("DELETE FROM routes WHERE domain_id = ?").bind(domain.id),
-      database.prepare("DELETE FROM domains WHERE id = ?").bind(domain.id),
-      audit("domain", "Domain removed", domain.id, administrator.displayName, { hostname: domain.hostname }),
-    ]);
-  } catch {
-    return { error: SAVE_FAILURE_MESSAGE };
-  }
-  refreshDashboard();
-  return { error: null };
-}
-
 export async function testIntegration(name: string): Promise<{ ok: boolean; message: string }> {
-  await requireAdministrator();
+  const owner = await authoriseAction("settings");
+  if (!owner) return { ok: false, message: FORBIDDEN_MESSAGE };
   switch (name) {
     case "Cloudflare D1":
       try {

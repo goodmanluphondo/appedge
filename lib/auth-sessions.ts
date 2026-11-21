@@ -1,4 +1,5 @@
 import type { AppEdgeD1Database } from "../app/lib/d1";
+import { isRole, type Role } from "../app/lib/permissions";
 import { ADMIN_SESSION_MAX_AGE_SECONDS } from "./auth-cookies";
 import { hashAuthToken, randomAuthToken } from "./auth-tokens";
 
@@ -7,6 +8,7 @@ export type AdministratorIdentity = {
   objectId: string;
   email: string;
   displayName: string;
+  role: Role;
 };
 
 export async function createAdminSession(
@@ -24,7 +26,7 @@ export async function createAdminSession(
     .run();
   await db
     .prepare(
-      "INSERT INTO admin_sessions (token_hash, entra_tenant_id, entra_object_id, email, display_name, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO admin_sessions (token_hash, entra_tenant_id, entra_object_id, email, display_name, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(
       tokenHash,
@@ -32,6 +34,7 @@ export async function createAdminSession(
       administrator.objectId,
       administrator.email,
       administrator.displayName,
+      administrator.role,
       now,
       expiresAt,
     )
@@ -63,6 +66,7 @@ export async function findActiveAdministrator(
   id: string;
   displayName: string;
   email: string;
+  role: Role;
 } | null> {
   if (!token) {
     return null;
@@ -70,7 +74,7 @@ export async function findActiveAdministrator(
 
   const administrator = await db
     .prepare(`
-      SELECT entra_object_id AS id, display_name AS displayName, email
+      SELECT entra_object_id AS id, display_name AS displayName, email, role
       FROM admin_sessions
       WHERE admin_sessions.token_hash = ?
         AND admin_sessions.expires_at > ?
@@ -82,7 +86,8 @@ export async function findActiveAdministrator(
       id: string;
       displayName: string;
       email: string;
+      role: string;
     }>();
 
-  return administrator;
+  return administrator && isRole(administrator.role) ? { ...administrator, role: administrator.role } : null;
 }

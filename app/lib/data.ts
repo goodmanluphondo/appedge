@@ -46,6 +46,9 @@ export type DomainRecord = DomainStatuses & {
   cnameTarget: string | null;
   ownershipRecords: string;
   certificateRecords: string;
+  cloudflareHostnameId: string | null;
+  cloudflareStatus: string | null;
+  lastCheckedAt: string | null;
 };
 
 export type ActivityRecord = {
@@ -73,6 +76,10 @@ type RawDomain = {
   ownership_records: string;
   certificate_records: string;
   route_status: string | null;
+  cloudflare_hostname_id: string | null;
+  cloudflare_status: string | null;
+  status_message: string | null;
+  last_checked_at: string | null;
 };
 
 const DOMAIN_SELECT = `
@@ -90,7 +97,11 @@ const DOMAIN_SELECT = `
     domains.ssl_status,
     domains.ownership_records,
     domains.certificate_records,
-    routes.status AS route_status
+    routes.status AS route_status,
+    domains.cloudflare_hostname_id,
+    domains.cloudflare_status,
+    domains.status_message,
+    domains.last_checked_at
   FROM domains
   INNER JOIN clients ON clients.id = domains.client_id
   INNER JOIN applications ON applications.id = domains.application_id
@@ -123,6 +134,10 @@ function mapDomain(row: RawDomain): DomainRecord {
     ownershipRecords: row.ownership_records,
     certificateRecords: row.certificate_records,
     routeStatus: row.route_status,
+    statusMessage: row.status_message,
+    cloudflareHostnameId: row.cloudflare_hostname_id,
+    cloudflareStatus: row.cloudflare_status,
+    lastCheckedAt: row.last_checked_at,
   };
 }
 

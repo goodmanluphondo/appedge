@@ -15,6 +15,7 @@ export type DomainStatuses = {
   sslStatus: string;
   routeStatus: string | null;
   recordsIssued?: boolean;
+  statusMessage?: string | null;
 };
 
 function pendingMessages(edgeHostname: string): readonly string[] {
@@ -74,6 +75,7 @@ export function domainStatusText(statuses: DomainStatuses, edgeHostname: string)
   const state = domainState(statuses);
   if (state === "pending" && statuses.recordsIssued === false) return "Waiting for DNS records to be issued";
   if (state === "live") return "Live";
+  if (statuses.statusMessage && (state === "error" || state === "pending")) return statuses.statusMessage;
   if (state === "ready") return "Certificate active · route not published";
   if (stage === 3) return "";
   return state === "error" ? FAILURE_MESSAGES[stage] : pendingMessages(edgeHostname)[stage];
@@ -82,6 +84,14 @@ export function domainStatusText(statuses: DomainStatuses, edgeHostname: string)
 export function domainFailureGuidance(statuses: DomainStatuses): string {
   const stage = pipelineStage(statuses);
   return stage === 3 ? "" : FAILURE_GUIDANCE[stage];
+}
+
+export function domainActionLabel(statuses: DomainStatuses): string | null {
+  const state = domainState(statuses);
+  if (state === "live") return null;
+  if (state === "ready") return "Activate route";
+  if (state === "error") return "Retry check";
+  return ["Verify ownership", "Check DNS", "Check status"][pipelineStage(statuses)] ?? null;
 }
 
 export type DnsRecordState = "Verified" | "Failed" | "Pending";

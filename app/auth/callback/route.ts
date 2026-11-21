@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       !identity.isTenantMember ||
       identity.isGuest ||
       !identity.email ||
-      !identity.hasAdministratorRole
+      !identity.role
     ) {
       return loginRedirect(config.siteOrigin, "AccessDenied");
     }
@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
       objectId: identity.objectId,
       email: identity.email,
       displayName: identity.displayName ?? identity.email,
+      role: identity.role,
     }, Date.now());
     const response = NextResponse.redirect(new URL("/", config.siteOrigin), 303);
     response.headers.set("Cache-Control", "no-store");

@@ -1,6 +1,7 @@
 import { AddRouteButton } from "./route-actions";
 import { DataTable } from "./data-table";
 import { DomainDrawer } from "./domain-drawer";
+import { requirePermissionOrRedirect } from "../lib/auth";
 import { getEdgeHostname } from "./lib/edge";
 import { SettingsPanels } from "./settings-panels";
 import type { ClientScope, ManagementSection } from "./lib/data";
@@ -28,6 +29,7 @@ export async function SectionPage({ section, path, scope, query, filter, domainI
   const parameters = { client: scope, q: query || null, filter: filter === "all" ? null : filter };
 
   if (section === "Settings") {
+    await requirePermissionOrRedirect("settings");
     return <SettingsPanels edgeHostname={getEdgeHostname()}/>;
   }
 

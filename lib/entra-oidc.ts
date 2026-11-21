@@ -1,17 +1,17 @@
 import { type JWTPayload, createRemoteJWKSet, jwtVerify } from "jose";
+import { highestRoleFromClaims, type Role } from "../app/lib/permissions";
 import type { AppEdgeAuthConfig } from "./auth-config";
 
 const MICROSOFT_LOGIN_ORIGIN = "https://login.microsoftonline.com";
 const OIDC_SCOPE = "openid profile email";
 const ID_TOKEN_CLOCK_TOLERANCE_SECONDS = 60;
-const REQUIRED_APP_ROLE = "AppEdge.Administrator";
 
 export type EntraIdentity = {
   tenantId: string;
   objectId: string;
   email: string | null;
   displayName: string | null;
-  hasAdministratorRole: boolean;
+  role: Role | null;
   isTenantMember: boolean;
   isGuest: boolean;
 };
@@ -152,7 +152,7 @@ export async function verifyIdToken(
     objectId,
     email,
     displayName: readStringClaim(payload, "name"),
-    hasAdministratorRole: roles.includes(REQUIRED_APP_ROLE),
+    role: highestRoleFromClaims(roles),
     isTenantMember:
       tenantId === config.tenantId && payload.iss === tenantIssuer(config.tenantId),
     isGuest: isGuestAccount(payload, config.tenantId),

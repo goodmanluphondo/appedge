@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { GatewayMetricsStrip } from "./gateway-metrics-strip";
 import { DomainDrawer } from "./domain-drawer";
-import { ActivateRouteButton } from "./route-actions";
+import { ActivateRouteButton, CheckDomainButton, OriginAction } from "./route-actions";
 import { Icon, type IconName } from "./icons";
 import {
   getActivity,
@@ -13,10 +15,12 @@ import {
 import {
   PIPELINE_STAGES,
   domainState,
+  domainActionLabel,
   domainStatusText,
   pipelineStage,
 } from "./lib/domain-pipeline";
 import { getEdgeHostname } from "./lib/edge";
+import { getGatewayMetrics } from "./lib/gateway-metrics";
 import { clientPaletteFor, formatRelativeTime, initialsOf } from "./lib/format";
 import { buildHref } from "./lib/query";
 
@@ -46,16 +50,19 @@ export async function Overview({ scope, domainId, now }: { scope: ClientScope; d
       <Tile label="Applications" value={applications.length} note={`${withoutOrigin.length} without origin`} icon="box" tone="violet"/>
     </div>
 
+    <Suspense fallback={<GatewayMetricsStrip metrics={null} edgeHostname={edgeHostname}/>}><GatewayMetricsSection edgeHostname={edgeHostname}/></Suspense>
+
     {(failing.length > 0 || withoutOrigin.length > 0) && <section className="attention-panel" aria-label="Needs attention">
       <div className="attention-title"><Icon name="alert" size={18}/>Needs attention</div>
       {failing.map((domain) => <div className="attention-row" key={domain.id}>
         <div><span className="attention-name">{domain.hostname}</span><span className="attention-message">{domainStatusText(domain, edgeHostname)}</span></div>
         <Link className="attention-details" href={domainHref(domain.id)} scroll={false}>Details</Link>
+        <CheckDomainButton domainId={domain.id} label={domainActionLabel(domain) ?? "Retry check"} variant="attention"/>
       </div>)}
       {withoutOrigin.map((application) => <div className="attention-row" key={application.id}>
         <div><span className="attention-name">{application.name}</span><span className="attention-message">No origin URL configured, so a route cannot be published.</span></div>
         <Link className="attention-details" href={buildHref("/", { ...parameters, modal: "origin", application: application.id })} scroll={false}>Details</Link>
-        <Link className="attention-action" href={buildHref("/", { ...parameters, modal: "origin", application: application.id })} scroll={false}>Set origin</Link>
+        <OriginAction className="attention-action" href={buildHref("/", { ...parameters, modal: "origin", application: application.id })}>Set origin</OriginAction>
       </div>)}
     </section>}
 
@@ -104,6 +111,10 @@ export async function Overview({ scope, domainId, now }: { scope: ClientScope; d
   </>;
 }
 
+async function GatewayMetricsSection({ edgeHostname }: { edgeHostname: string }) {
+  return <GatewayMetricsStrip metrics={await getGatewayMetrics()} edgeHostname={edgeHostname}/>;
+}
+
 function Tile({ label, value, note, icon, tone }: { label: string; value: number; note: string; icon: IconName; tone: string }) {
   return <div className="tile">
     <div className="tile-top"><span>{label}</span><span className={`tile-icon tone-${tone}`}><Icon name={icon} size={17}/></span></div>
@@ -119,6 +130,7 @@ function PipelineCard({ domain, href, edgeHostname }: { domain: DomainRecord; hr
     <span className="pipeline-card-meta">{domain.applicationName} · {domain.clientName}</span>
     <span className="pipeline-card-status">{domainStatusText(domain, edgeHostname)}</span>
     {state === "ready" && <ActivateRouteButton domainId={domain.id} hostname={domain.hostname} variant="card"/>}
+    {state !== "ready" && domainActionLabel(domain) && <CheckDomainButton domainId={domain.id} label={domainActionLabel(domain) ?? ""} variant="card"/>}
   </div>;
 }
 
@@ -129,6 +141,6 @@ function ApplicationRow({ application, scope }: { application: ApplicationRecord
     <div className="panel-row-main"><strong>{application.name}</strong><span>{application.clientName} · {application.applicationType === "cloudflare_worker" ? "Cloudflare Worker" : "External HTTPS"}</span></div>
     {application.originUrl
       ? <span className="origin-state is-set"><i/>Origin set</span>
-      : <Link className="origin-state is-missing" scroll={false} href={buildHref("/", { client: scope, modal: "origin", application: application.id })}>Set origin</Link>}
+      : <OriginAction className="origin-state is-missing" href={buildHref("/", { client: scope, modal: "origin", application: application.id })}>Set origin</OriginAction>}
   </div>;
 }

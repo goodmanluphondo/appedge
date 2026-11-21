@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 import type { ModalKind, Notice } from "./record-modal";
 
 export type ShellActions = {
+  canManage: boolean;
   notify: (notice: Notice) => void;
   openCreateModal: (kind: ModalKind) => void;
 };

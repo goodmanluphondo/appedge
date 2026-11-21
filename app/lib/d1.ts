@@ -7,7 +7,7 @@ export interface AppEdgeD1Statement {
   bind(...values: D1Value[]): AppEdgeD1Statement;
   all<Row>(): Promise<{ results: Row[]; success: boolean }>;
   first<Row>(): Promise<Row | null>;
-  run(): Promise<unknown>;
+  run(): Promise<{ meta?: { changes?: number } }>;
 }
 
 export interface AppEdgeD1Database {
