@@ -2,6 +2,7 @@ import "server-only";
 import { CloudflareApiError, confirmCustomHostnameAccess } from "./cloudflare-custom-hostnames";
 import { getAppEdgeDatabase } from "./d1";
 import { getEdgeHostname } from "./edge";
+import { getAppEdgeGatewayBinding } from "./gateway-binding";
 import { gatewayHealthUrl, probeGatewayHealth } from "./gateway-health";
 
 export type IntegrationState = "connected" | "not_connected" | "error";
@@ -70,14 +71,16 @@ async function checkCloudflareForSaas(): Promise<IntegrationCheck> {
 
 async function checkGateway(): Promise<IntegrationCheck> {
   let gatewayHostname: string;
+  let gateway: ReturnType<typeof getAppEdgeGatewayBinding>;
   try {
     gatewayHostname = getEdgeHostname();
+    gateway = getAppEdgeGatewayBinding();
   } catch (error) {
-    return notConnected(error instanceof Error ? error.message : "APPEDGE_EDGE_HOSTNAME is not set.");
+    return failed(error instanceof Error ? error.message : "The gateway binding could not be read.");
   }
-  const health = await probeGatewayHealth(gatewayHostname, fetch);
+  const health = await probeGatewayHealth(gatewayHostname, (url, init) => gateway.fetch(url, init));
   return health.reachable
-    ? connected(`The gateway answered its health check at ${gatewayHealthUrl(gatewayHostname)}.`)
+    ? connected(`The gateway answered its health check for ${gatewayHealthUrl(gatewayHostname)} through its service binding.`)
     : failed(health.reason);
 }
 

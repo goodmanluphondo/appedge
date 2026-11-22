@@ -5,7 +5,9 @@ export type GatewayHealth =
   | { reachable: true }
   | { reachable: false; reason: string };
 
-type HealthFetch = (url: string, init: { method: string; headers: Record<string, string>; signal: AbortSignal; cache: "no-store"; redirect: "manual" }) => Promise<Response>;
+export type HealthRequestInit = { method: string; headers: Record<string, string>; signal: AbortSignal; redirect: "manual" };
+
+export type HealthFetch = (url: string, init: HealthRequestInit) => Promise<Response>;
 
 export function gatewayHealthUrl(gatewayHostname: string): string {
   return `https://${gatewayHostname}${GATEWAY_HEALTH_PATH}`;
@@ -28,11 +30,10 @@ export async function probeGatewayHealth(gatewayHostname: string, fetchHealth: H
       method: "GET",
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(GATEWAY_HEALTH_TIMEOUT_MILLISECONDS),
-      cache: "no-store",
       redirect: "manual",
     });
   } catch {
-    return { reachable: false, reason: `${url} could not be reached or did not answer in time.` };
+    return { reachable: false, reason: `The gateway Worker could not be reached through its service binding, or did not answer in time, when requesting ${url}.` };
   }
   if (response.status !== 200) {
     return { reachable: false, reason: `${url} answered ${response.status} instead of 200.` };
