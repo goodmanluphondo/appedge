@@ -2,7 +2,7 @@ import "server-only";
 import { CloudflareApiError, confirmCustomHostnameAccess } from "./cloudflare-custom-hostnames";
 import { getAppEdgeDatabase } from "./d1";
 import { getEdgeHostname } from "./edge";
-import { getGatewayMetrics } from "./gateway-metrics";
+import { gatewayHealthUrl, probeGatewayHealth } from "./gateway-health";
 
 export type IntegrationState = "connected" | "not_connected" | "error";
 export type IntegrationCheck = { state: IntegrationState; message: string };
@@ -69,10 +69,16 @@ async function checkCloudflareForSaas(): Promise<IntegrationCheck> {
 }
 
 async function checkGateway(): Promise<IntegrationCheck> {
-  const metrics = await getGatewayMetrics();
-  return metrics.status === "available"
-    ? connected("Gateway telemetry is readable.")
-    : notConnected(metrics.reason);
+  let gatewayHostname: string;
+  try {
+    gatewayHostname = getEdgeHostname();
+  } catch (error) {
+    return notConnected(error instanceof Error ? error.message : "APPEDGE_EDGE_HOSTNAME is not set.");
+  }
+  const health = await probeGatewayHealth(gatewayHostname, fetch);
+  return health.reachable
+    ? connected(`The gateway answered its health check at ${gatewayHealthUrl(gatewayHostname)}.`)
+    : failed(health.reason);
 }
 
 export async function checkIntegration(name: string): Promise<IntegrationCheck> {
@@ -89,7 +95,7 @@ export async function getIntegrationSummaries(): Promise<IntegrationSummary[]> {
   const definitions: { name: IntegrationName; description: string }[] = [
     { name: "Cloudflare for SaaS", description: "Custom hostname registration and TLS certificates" },
     { name: "Cloudflare D1", description: "Operational records and routing configuration" },
-    { name: "AppEdge Gateway", description: `Cloudflare Worker at ${getEdgeHostname()}, reads routes from D1` },
+    { name: "AppEdge Gateway", description: "Resolves hostnames through the AppEdge API and proxies requests to their configured application origins" },
     { name: "Microsoft Entra ID", description: "Sign-in and AppEdge role assignment" },
   ];
   const checks = await Promise.all(definitions.map((definition) => checkIntegration(definition.name)));
